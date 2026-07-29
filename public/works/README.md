@@ -20,7 +20,46 @@
   | 0    | `intro`     | `intro.html`     | 자기소개           |
   | 1    | `dream`     | `dream.html`     | 나의 꿈은?         |
   | 2    | `game5`     | `game5.html`     | 5년 뒤 나의 미래(게임) |
-  | 3    | `webtoon10` | `webtoon10.html` | 10년 뒤 나의 미래(웹툰) |
+  | 3    | `webtoon10` | `webtoon10.html` | 10년 뒤 나의 미래(웹툰) — **방학 숙제(선택)** |
+
+  > slot 3은 마지막 수업에서 다루지 못해 **방학 숙제/개별 과제**로 남겨둔 칸입니다.
+  > `WORK_CATEGORIES` 에 `optional: true` 가 붙어 있어, 갤러리에서 "전시 준비 중"이 아니라
+  > 보라색 점선 + `🎒 방학 숙제 ▸` 뱃지로 표시되고, 누르면 안내 문서
+  > (`/guides/webtoon10-homework.html`)가 열립니다.
+  >
+  > **이 칸만 등록 절차가 다릅니다.** 방학 중에 학생이 스스로 올리는 과제라,
+  > `seed.js` 의 `WORK_FOLDERS`(닉네임↔폴더 슬러그 표)를 훑어 `webtoon10.html` 이 있으면
+  > **자동으로 걸립니다**. 학생은 자기 폴더에 파일만 넣으면 되고, 아래 "DB 연결" 절차는 필요 없습니다
+  > (서버 재시작 시 반영). 학생이 늘면 `WORK_FOLDERS` 에 폴더 이름 한 줄만 추가해 두면 됩니다.
+
+## 「나의 꿈은」(slot 1) — 영상 작품
+
+`dream.html` 은 **영상 재생기**이고, 영상 자체는 `ffmpeg` 로 따로 빌드합니다.
+
+```
+public/works/<슬러그>/
+  dream.html              ← 갤러리에 등록되는 페이지 (재생기)
+  dream/
+    frames/01~05.png      ← AI로 만든 그림 5장          [git 무시]
+    bgm.mp3               ← 배경음악                     [git 무시]
+    captions.txt          ← 컷당 자막 한 줄
+    credits.txt           ← 음악 출처·라이선스 기록
+    dream.mp4 · poster.jpg← 빌드 결과물
+```
+
+> 원본 그림(~11MB)과 음악(~5MB)은 용량 때문에 **커밋하지 않습니다**(`.gitignore`).
+> 저장소에는 결과물인 `dream.mp4` 만 들어갑니다. 다시 빌드해야 하면 음악은
+> `credits.txt` 의 URL 로 받고, 그림은 프롬프트로 다시 생성하세요.
+
+```bash
+./tools/dream-film/build.sh <슬러그>     # 26초 mp4 생성
+```
+
+- 스토리보드와 이미지 생성 프롬프트가 필요하면 Claude 에게
+  **"dream-film 으로 &lt;슬러그&gt; 꺼 만들어줘"** 라고 하세요(`.claude/agents/dream-film.md`).
+- `dream.mp4` 가 생긴 뒤 서버를 재시작하면 갤러리 칸이 **자동으로 켜집니다**
+  (`server/seed.js` 가 파일 존재를 확인합니다).
+- 자세한 내용: [`tools/dream-film/README.md`](../../tools/dream-film/README.md)
 
 ## DB 연결
 

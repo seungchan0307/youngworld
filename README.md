@@ -20,6 +20,10 @@ npm start       # 서버 시작 → http://localhost:3000
 - **이동**: 방향키 또는 WASD
 - **학교 입장**: 왼쪽 위 학교(🏫) 문을 밟으면 교실로 들어간다. 교실 아래 문으로 나온다.
 - **칠판**: 교실 앞 칠판의 자료 제목을 클릭 → 강의자료가 크게 열림(Esc로 닫기)
+- **캠프파이어 텐트(회고)**: 청소년수련관 오른쪽 텐트(⛺) 입구를 밟거나 클릭하면 텐트 안으로 들어간다.
+  좁은 텐트 안 모닥불 위에 📜 가 깜빡이고, 누르면 **회고 롤링페이퍼**가 열린다.
+  좋았던 점 · 아쉬웠던 점 · 앞으로 하고 싶은 것은 모두가 함께 읽고,
+  **친구별 한마디는 받는 사람만** 볼 수 있다(선생님도 못 봄).
 - 오른쪽 아래 버튼: 📱 핸드폰(학생) · 🛠️ 관리(선생님) · 🔒 비번변경
 
 ## 수업 날 다른 노트북에서 접속하기 (LAN)
@@ -46,6 +50,7 @@ server/       백엔드 (Node + Express + Socket.io + SQLite)
   schema.sql    테이블 정의
   seed.js       초기 아바타/자료 심기
   auth.js       로그인/비밀번호 API
+  games.js      작품 게임의 점수 기록(랭킹) API
   permissions.js역할별 권한 규칙
   phone.js      핸드폰(문자/투표/설문) 로직
   socket.js     실시간 이벤트 처리(핵심)
@@ -56,8 +61,8 @@ public/       프론트엔드 (브라우저에서 그대로 실행, 빌드 없�
     main.js       시작점(로그인→게임)
     net.js        서버 통신
     state.js      공유 상태
-    scenes/       Phaser 씬 (Boot / World / Island / Classroom)
-    ui/           HTML UI (login / phone / admin / ppt)
+    scenes/       Phaser 씬 (Boot / World / Island / Classroom / Campfire)
+    ui/           HTML UI (login / phone / admin / ppt / retro)
   lectures/     칠판에 거는 강의자료(HTML)
 docs/         강의계획서, 구상 문서
 ```
@@ -68,6 +73,16 @@ docs/         강의계획서, 구상 문서
 - **아바타 꾸미기**: `public/js/scenes/BootScene.js` 의 아바타 그리는 코드.
 - **새 핸드폰 기능**: `server/phone.js` + `public/js/ui/phone.js`.
 - **교실 작품 전시**: `gallery_works` 테이블 + `ClassroomScene.drawGallery()` (3회차 미니게임 연계).
+- **내 게임에 랭킹 붙이기**: 서버를 고칠 필요 없이 `/api/game/*` 3개를 부르면 된다.
+  `gameKey` 만 자기 게임 이름으로 정하면 작품별로 기록이 따로 쌓인다(예: `soobing-game5`).
+
+  | 부르는 곳 | 하는 일 |
+  | --- | --- |
+  | `POST /api/game/me` | 내가 로그인 사용자인지 게스트인지 알려준다 |
+  | `POST /api/game/score` | 한 판 점수를 저장한다. 로그인 사용자는 **자기 닉네임으로만** 기록되고, 게스트는 `playerName` 을 같이 보내야 한다 |
+  | `GET /api/game/ranking?gameKey=...` | 기록 보기. 로그인 없이 **누구나** 볼 수 있다 |
+
+  랭킹에는 한 사람당 가장 잘한 판 하나만 올라간다. 예시는 `public/works/soobing/game5.html`.
 
 ## ⚠️ 주의(교육용 단순화)
 비밀번호는 **평문·숫자**로 저장된다(친구들끼리 하는 게임이라 일부러 단순화). 실제 서비스에서는 절대 이렇게 하면 안 되고, 비밀번호는 해시(bcrypt 등)로 저장해야 한다.

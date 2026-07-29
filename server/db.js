@@ -101,8 +101,10 @@ const Avatars = {
         db.prepare('DELETE FROM phone_messages WHERE id IN (' + mph + ')').run(...sentMsgIds);
       }
 
-      // (3) 이 사람의 작품(갤러리) + 세션.
+      // (3) 이 사람의 작품(갤러리) + 회고 롤링페이퍼(쓴 것·받은 것) + 세션.
       db.prepare('DELETE FROM gallery_works WHERE author_id = ?').run(a.id);
+      db.prepare('DELETE FROM retro_feedbacks WHERE from_id = ? OR to_id = ?').run(a.id, a.id);
+      db.prepare('DELETE FROM retro_papers WHERE author_id = ?').run(a.id);
       db.prepare('DELETE FROM sessions WHERE avatar_id = ?').run(a.id);
 
       // (4) 마지막으로 아바타.
@@ -399,11 +401,21 @@ const Materials = {
 };
 
 // 작품 전시 카테고리 4종(고정 순서 = slot 인덱스). 학생마다 이 4칸을 채운다.
+// optional: 수업 시간에 다 못 하는 칸. 방학 숙제/개별 과제로 남겨두고, 하고 싶은 친구만 채운다.
 const WORK_CATEGORIES = [
   { key: 'intro', label: '자기소개', sub: '', icon: '👋' },
   { key: 'dream', label: '나의 꿈은?', sub: '', icon: '⭐' },
   { key: 'game5', label: '5년 뒤 나의 미래', sub: '(게임)', icon: '🎮' },
-  { key: 'webtoon10', label: '10년 뒤 나의 미래', sub: '(웹툰)', icon: '📚' },
+  {
+    key: 'webtoon10',
+    label: '10년 뒤 나의 미래',
+    sub: '(웹툰)',
+    icon: '📚',
+    optional: true,
+    note: '하고 싶은 사람만 · 언제든지',
+    // 비어 있는 카드를 누르면 열리는 안내(만드는 법이 아니라 "틀이 없다"는 안내).
+    guide: '/guides/webtoon10-homework.html',
+  },
 ];
 
 // 교실 책장의 How-to 안내 문서.
@@ -479,4 +491,124 @@ const Gallery = {
   },
 };
 
-module.exports = { db, Avatars, Sessions, Phone, Materials, Gallery, Guides };
+// 작품 게임의 점수 기록(랭킹).
+//   게임마다 gameKey 를 하나씩 쓴다. 학생이 만든 게임도 같은 함수를 그대로 쓸 수 있다.
+const GameScores = {
+  // 기록 한 줄 추가. 로그인 사용자는 avatarId 가 들어오고, 게스트는 null 이다.
+  add({ gameKey, avatarId, playerName, score, grade, detail }) {
+    const info = db
+      .prepare(
+        `INSERT INTO game_scores (game_key, avatar_id, player_name, score, grade, detail)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .run(gameKey, avatarId ?? null, playerName, score, grade ?? '', detail ?? null);
+    return info.lastInsertRowid;
+  },
+
+  // 랭킹: "사람 한 명당 가장 잘한 판 하나"만 남겨서 점수 순으로 준다.
+  //   같은 사람이 여러 번 해서 1~5등을 다 차지하면 다른 친구 기록이 안 보이기 때문이다.
+  //   사람 구분 기준: 로그인 사용자는 아바타 id, 게스트는 입력한 이름.
+  ranking(gameKey, limit = 20) {
+    return db
+      .prepare(
+        `SELECT player_name, avatar_id, score, grade, created_at FROM (
+           SELECT *,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY CASE WHEN avatar_id IS NULL THEN 'g:' || player_name
+                                      ELSE 'a:' || avatar_id END
+                    ORDER BY score DESC, created_at ASC
+                  ) AS rn
+             FROM game_scores
+            WHERE game_key = ?
+         )
+         WHERE rn = 1
+         ORDER BY score DESC, created_at ASC
+         LIMIT ?`
+      )
+      .all(gameKey, limit);
+  },
+
+  // 방금 기록한 사람이 전체에서 몇 등인지. (상위 20등 밖이어도 등수는 알려주고 싶다)
+  //   ranking() 과 같은 기준으로 전체를 뽑아 순서를 센다. 수업 규모(수십~수백 건)라 충분히 빠르다.
+  rankOf(gameKey, { avatarId, playerName }) {
+    const all = GameScores.ranking(gameKey, 100000);
+    const idx = all.findIndex((r) =>
+      avatarId != null ? r.avatar_id === avatarId : r.avatar_id === null && r.player_name === playerName
+    );
+    return { rank: idx < 0 ? null : idx + 1, total: all.length };
+  },
+};
+
+// ---------------------------------------------------------------------
+// 캠프파이어 회고 롤링페이퍼
+//   공개 3칸(retro_papers)은 모두가 함께 읽고,
+//   개인별 한마디(retro_feedbacks)는 "받는 사람"과 "쓴 사람"만 읽는다.
+//   → 비밀 보장은 화면이 아니라 여기(서버 쿼리)에서 지켜진다.
+// ---------------------------------------------------------------------
+const Retro = {
+  // 내가 쓴 회고 한 장(없으면 undefined).
+  paperOf(authorId) {
+    return db
+      .prepare('SELECT good, bad, next_step AS nextStep, updated_at AS updatedAt FROM retro_papers WHERE author_id = ?')
+      .get(authorId);
+  },
+
+  // 모두의 공개 회고(모닥불에 둘러앉아 함께 읽는 부분). 최신 수정순.
+  allPapers() {
+    return db
+      .prepare(
+        `SELECT p.author_id AS authorId, a.nickname, a.color, a.role,
+                p.good, p.bad, p.next_step AS nextStep, p.updated_at AS updatedAt
+         FROM retro_papers p JOIN avatars a ON a.id = p.author_id
+         ORDER BY p.updated_at DESC, p.id DESC`
+      )
+      .all();
+  },
+
+  // 나에게 온 비밀 한마디(보낸 사람 이름과 함께).
+  feedbackTo(toId) {
+    return db
+      .prepare(
+        `SELECT f.from_id AS fromId, a.nickname, a.color, f.body, f.updated_at AS updatedAt
+         FROM retro_feedbacks f JOIN avatars a ON a.id = f.from_id
+         WHERE f.to_id = ?
+         ORDER BY f.updated_at DESC, f.id DESC`
+      )
+      .all(toId);
+  },
+
+  // 내가 쓴 비밀 한마디들(고쳐 쓸 때 화면에 채워주기 위함).
+  feedbackFrom(fromId) {
+    return db
+      .prepare('SELECT to_id AS toId, body FROM retro_feedbacks WHERE from_id = ?')
+      .all(fromId);
+  },
+
+  // 회고 저장(있으면 수정). feedbacks = [{ toId, body }] — 빈 내용은 지운다.
+  // 공개 3칸과 비밀 한마디를 한 트랜잭션으로 저장해 "반만 저장" 되는 일이 없게 한다.
+  save({ authorId, good, bad, nextStep, feedbacks }) {
+    const tx = db.transaction(() => {
+      db.prepare(
+        `INSERT INTO retro_papers (author_id, good, bad, next_step)
+         VALUES (@authorId, @good, @bad, @nextStep)
+         ON CONFLICT(author_id) DO UPDATE SET
+           good = @good, bad = @bad, next_step = @nextStep, updated_at = datetime('now')`
+      ).run({ authorId, good, bad, nextStep });
+
+      for (const f of feedbacks) {
+        if (!f.body) {
+          db.prepare('DELETE FROM retro_feedbacks WHERE from_id = ? AND to_id = ?').run(authorId, f.toId);
+          continue;
+        }
+        db.prepare(
+          `INSERT INTO retro_feedbacks (from_id, to_id, body)
+           VALUES (@from, @to, @body)
+           ON CONFLICT(from_id, to_id) DO UPDATE SET body = @body, updated_at = datetime('now')`
+        ).run({ from: authorId, to: f.toId, body: f.body });
+      }
+    });
+    tx();
+  },
+};
+
+module.exports = { db, Avatars, Sessions, Phone, Materials, Gallery, Guides, GameScores, Retro };

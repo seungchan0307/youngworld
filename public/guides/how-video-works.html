@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>그림 5장이 영상이 되기까지 — 영월드</title>
+<!--
+  책장(How-to) 문서.
+  「나의 꿈은」 영상이 '기술적으로' 어떻게 만들어지는지 설명한다.
+  숫자는 전부 실제 결과물(dream.mp4)에서 뽑은 값이다.
+    26초 · 30fps · 780프레임 · 1280x720 · 5.3MB
+  데모는 전부 CSS 애니메이션이라 외부 파일이 필요 없다.
+-->
+<style>
+  :root{
+    --ink:#1f2430; --muted:#5b6472; --accent:#e8590c; --accent2:#1c7ed6;
+    --soft:#fff4e6; --sky:#e7f5ff; --line:#e3e7ee; --bg:#f7f8fb;
+    --green:#2f9e44; --mint:#ebfbee; --purple:#7048e8;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--bg); }
+  body{
+    font-family:"Apple SD Gothic Neo","Pretendard","Noto Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+    color:var(--ink); line-height:1.7;
+  }
+  .wrap{ max-width:820px; margin:0 auto; padding:36px 24px 72px; }
+
+  header.hero{
+    background:linear-gradient(135deg,#1b2f57,#1c7ed6); color:#fff;
+    border-radius:18px; padding:30px 28px; margin-bottom:26px;
+    box-shadow:0 10px 30px rgba(28,126,214,.25);
+  }
+  header.hero .tag{ display:inline-block; background:rgba(255,255,255,.22); font-weight:800; font-size:13px; padding:5px 12px; border-radius:20px; }
+  header.hero h1{ margin:12px 0 6px; font-size:29px; }
+  header.hero p{ margin:0; opacity:.95; font-size:15px; }
+
+  h2{ font-size:21px; margin:40px 0 12px; padding-left:12px; border-left:5px solid var(--accent2); }
+  h2 .ki{ font-size:14px; color:var(--muted); font-weight:600; margin-left:6px; }
+  h3{ font-size:16px; margin:22px 0 8px; color:var(--accent); }
+  p.lead{ color:var(--muted); margin:0 0 18px; }
+
+  .callout{ background:var(--sky); border-left:4px solid var(--accent2); border-radius:12px; padding:15px 20px; margin:16px 0; }
+  .callout b{ color:var(--accent2); }
+  .callout.warm{ background:var(--soft); border-left-color:var(--accent); }
+  .callout.warm b{ color:var(--accent); }
+  .callout.mint{ background:var(--mint); border-left-color:var(--green); }
+  .callout.mint b{ color:var(--green); }
+  .callout p{ margin:6px 0 0; font-size:14.5px; }
+  .callout p:first-child{ margin-top:0; }
+
+  /* 큰 숫자 */
+  .nums{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0; }
+  .num{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 14px; text-align:center; }
+  .num .v{ font-size:26px; font-weight:900; color:var(--accent2); line-height:1.2; }
+  .num .v small{ font-size:14px; font-weight:800; }
+  .num .l{ font-size:12.5px; color:var(--muted); margin-top:3px; }
+
+  /* 필름 스트립 */
+  .strip{ display:flex; gap:3px; overflow:hidden; border-radius:10px; margin:12px 0; background:#12121a; padding:7px 8px; }
+  .strip i{ flex:1; height:38px; border-radius:4px; display:block; }
+  .strip .more{ flex:none; color:#ffd24a; font-size:12px; font-weight:800; align-self:center; padding:0 6px; }
+
+  /* 데모 액자 */
+  .demo{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin:14px 0; }
+  .demo .cap{ font-size:12.5px; color:var(--muted); margin-bottom:9px; }
+  .demo .cap b{ color:var(--accent); }
+  .stage{ position:relative; width:100%; aspect-ratio:16/7; border-radius:10px; overflow:hidden; background:#0e1220; }
+
+  /* ① 켄 번스 데모 */
+  .kb{ position:absolute; inset:0; background:
+        radial-gradient(circle at 22% 68%, #ffd8a8 0 7%, transparent 7.5%),
+        linear-gradient(#a5d8ff 0 38%, #8ce99a 38% 100%);
+       animation:kb 6s ease-in-out infinite alternate; transform-origin:30% 60%; }
+  @keyframes kb{ from{ transform:scale(1); } to{ transform:scale(1.32); } }
+
+  /* ② 크로스페이드 데모 */
+  .xf{ position:absolute; inset:0; }
+  .xf .a{ position:absolute; inset:0; background:linear-gradient(120deg,#1b2f57,#4dabf7); }
+  .xf .b{ position:absolute; inset:0; background:linear-gradient(120deg,#e8590c,#ffd24a); animation:xf 4s ease-in-out infinite alternate; }
+  @keyframes xf{ 0%,20%{ opacity:0; } 80%,100%{ opacity:1; } }
+
+  /* ③ 자막 데모 */
+  .cc{ position:absolute; left:50%; bottom:11%; transform:translateX(-50%); background:rgba(27,47,87,.62);
+       color:#fff; font-size:13px; font-weight:700; padding:5px 13px; border-radius:7px; white-space:nowrap;
+       animation:cc 6s linear infinite; }
+  @keyframes cc{ 0%,8%{ opacity:0; } 14%,72%{ opacity:1; } 80%,100%{ opacity:0; } }
+
+  /* 타임라인 */
+  .tl{ margin:14px 0; }
+  .tl .row{ display:flex; align-items:center; gap:8px; margin:5px 0; }
+  .tl .lb{ flex:none; width:44px; font-size:12px; font-weight:800; color:var(--muted); text-align:right; }
+  .tl .bar{ position:relative; flex:1; height:26px; background:#eef1f6; border-radius:6px; overflow:hidden; }
+  .tl .seg{ position:absolute; top:0; bottom:0; border-radius:6px; display:flex; align-items:center; justify-content:center;
+            font-size:11px; font-weight:800; color:#fff; }
+  .tl .ov{ position:absolute; top:0; bottom:0; background:repeating-linear-gradient(45deg,rgba(255,255,255,.5) 0 4px,transparent 4px 8px); }
+  .tl .axis{ display:flex; justify-content:space-between; font-size:11px; color:#adb5bd; margin-left:52px; }
+
+  /* 압축 막대 */
+  .cmp{ margin:14px 0; }
+  .cmp .r{ display:flex; align-items:center; gap:10px; margin:8px 0; }
+  .cmp .k{ flex:none; width:96px; font-size:12.5px; font-weight:800; }
+  .cmp .b{ height:22px; border-radius:6px; display:flex; align-items:center; padding:0 9px; font-size:11.5px; font-weight:800; color:#fff; }
+
+  /* 용량 사다리 */
+  .ladder{ margin:16px 0; }
+  .ladder .st{ display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--line);
+               border-radius:12px; padding:11px 15px; margin:7px 0; }
+  .ladder .u{ flex:none; width:74px; font-weight:900; font-size:15px; color:var(--accent2); }
+  .ladder .u small{ display:block; font-size:11px; color:#adb5bd; font-weight:700; }
+  .ladder .d{ font-size:14px; }
+  .ladder .d b{ color:var(--ink); }
+  .ladder .d small{ display:block; color:var(--muted); font-size:12.5px; margin-top:1px; }
+
+  /* 그림(SVG) 액자 */
+  .fig{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px 10px; margin:16px 0; }
+  .fig svg{ width:100%; height:auto; display:block; }
+  .fig .cap{ font-size:12.5px; color:var(--muted); text-align:center; margin-top:8px; }
+  .fig .cap b{ color:var(--accent); }
+
+  table{ width:100%; border-collapse:collapse; margin:14px 0; font-size:14px; background:#fff; }
+  th,td{ border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top; }
+  th{ background:#f1f3f7; font-size:13.5px; }
+  td small{ color:var(--muted); }
+
+  code{ background:#eef1f6; border-radius:6px; padding:2px 6px; font-size:13px; font-family:"SF Mono",Menlo,Consolas,monospace; }
+  pre{ background:#12121a; color:#8ce99a; border-radius:11px; padding:13px 16px; overflow-x:auto; font-size:13px; margin:10px 0; line-height:1.55; }
+  pre code{ background:none; color:inherit; padding:0; }
+  pre .c{ color:#6c7a89; }
+  pre .y{ color:#ffd24a; }
+
+  .foot{ margin-top:44px; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted); text-align:center; }
+  @media (max-width:640px){ .nums{ grid-template-columns:1fr; } }
+  @media (prefers-reduced-motion:reduce){
+    .kb,.xf .b,.cc{ animation:none; }
+    .xf .b{ opacity:.5; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <span class="tag">📚 알아두면 좋은 지식</span>
+  <h1>🎬 그림 5장이 영상이 되기까지</h1>
+  <p>「나의 꿈은」 영상은 AI가 통째로 만들어 준 게 아니에요.<br>
+     그림 5장을 <b>계산으로 780장까지 불려서</b> 이어붙인 겁니다. 그 방법을 하나씩 뜯어봅니다.</p>
+</header>
+
+<h2>0. 먼저, 영상은 사실 그림책이에요 <span class="ki">플립북</span></h2>
+
+<p class="lead">
+  공책 귀퉁이에 조금씩 다른 그림을 그려놓고 촤르륵 넘기면 움직이는 것처럼 보이죠.
+  영상도 <b>정확히 똑같습니다.</b> 그림을 아주 빠르게 넘길 뿐이에요.
+</p>
+
+<div class="strip">
+  <i style="background:#4dabf7"></i><i style="background:#5cb3f8"></i><i style="background:#6bbbf9"></i>
+  <i style="background:#7ac3fa"></i><i style="background:#89cbfb"></i><i style="background:#98d3fc"></i>
+  <i style="background:#a7dbfd"></i><i style="background:#b6e3fe"></i>
+  <span class="more">… 780장</span>
+</div>
+
+<div class="nums">
+  <div class="num"><div class="v">30<small>장/초</small></div><div class="l">1초에 넘기는 그림 수</div></div>
+  <div class="num"><div class="v">26<small>초</small></div><div class="l">영상 길이</div></div>
+  <div class="num"><div class="v">780<small>장</small></div><div class="l">실제로 들어 있는 그림</div></div>
+</div>
+
+<div class="callout warm">
+  <p><b>그런데 우리는 5장만 그렸잖아요?</b></p>
+  <p>맞아요. <b>5장 → 780장</b>. 나머지 775장은 아무도 그리지 않았습니다.
+     전부 <b>계산해서 만들어낸</b> 거예요. 어떻게 했는지가 이 문서의 내용입니다.</p>
+</div>
+
+<h2>1. 카메라를 움직인다 <span class="ki">켄 번스 효과</span></h2>
+
+<p class="lead">
+  그림은 한 장인데, <b>매번 조금씩 다른 부분을 잘라내면</b> 카메라가 움직이는 것처럼 보입니다.
+  아래 그림은 <b>딱 한 장</b>이에요. 잘라내는 위치와 크기만 바뀌고 있습니다.
+</p>
+
+<div class="demo">
+  <div class="cap">👇 <b>정지 그림 한 장</b>입니다. 확대 위치만 조금씩 바뀌는 중</div>
+  <div class="stage"><div class="kb"></div></div>
+</div>
+
+<p>1초에 30번, 6초 동안이면 <b>180번</b> 조금씩 다르게 잘라냅니다.
+   한 번에 확대 배율을 <b>0.1%씩만</b> 키우기 때문에 사람 눈엔 부드럽게 흐르는 것으로 보여요.</p>
+
+<div class="callout">
+  <p><b>왜 원본보다 크게 늘려놓고 자를까?</b></p>
+  <p>작은 그림에서 바로 잘라내면 자르는 위치가 <b>정수 픽셀</b> 단위로만 움직여서 화면이 덜덜 떨립니다.
+     그래서 먼저 <b>3배로 크게</b> 만들어 두고 자릅니다. 3배 크기에서 1픽셀은 원래 크기로 치면 3분의 1픽셀이라,
+     훨씬 잘게 움직일 수 있어요.</p>
+</div>
+
+<p>컷마다 카메라 움직임이 다릅니다. 같은 움직임이 반복되면 지루해지거든요.</p>
+
+<table>
+  <tr><th>컷</th><th>카메라</th><th>느낌</th></tr>
+  <tr><td>1</td><td>천천히 확대</td><td>먼 곳을 바라본다</td></tr>
+  <tr><td>2</td><td>왼쪽 → 오른쪽</td><td>길을 나선다</td></tr>
+  <tr><td>3</td><td>더 세게 확대</td><td>무언가를 들여다본다</td></tr>
+  <tr><td>4</td><td>아래 → 위</td><td>올라간다</td></tr>
+  <tr><td>5</td><td>축소</td><td>세상이 넓어진다</td></tr>
+</table>
+
+<h2>2. 두 장을 섞는다 <span class="ki">크로스페이드</span></h2>
+
+<p class="lead">
+  컷이 뚝 끊기면 슬라이드쇼처럼 보입니다. 그래서 <b>1초 동안 두 장을 겹쳐서</b> 섞어요.
+  앞 그림은 서서히 투명해지고, 뒷 그림은 서서히 진해집니다.
+</p>
+
+<div class="demo">
+  <div class="cap">👇 30장에 걸쳐 <b>투명도가 0% → 100%</b> 로 바뀌는 중</div>
+  <div class="stage"><div class="xf"><div class="a"></div><div class="b"></div></div></div>
+</div>
+
+<p>겹치는 1초 = <b>30장</b> 입니다. 15번째 장은 앞 그림 50% + 뒷 그림 50% 를 섞어서 만듭니다.
+   이 30장도 <b>아무도 그리지 않은</b> 그림이에요.</p>
+
+<h3>그래서 30초가 아니라 26초</h3>
+
+<div class="tl">
+  <div class="row"><span class="lb">컷1</span><span class="bar">
+    <span class="seg" style="left:0%;width:23%;background:#4dabf7">6초</span></span></div>
+  <div class="row"><span class="lb">컷2</span><span class="bar">
+    <span class="seg" style="left:19.2%;width:23%;background:#748ffc">6초</span>
+    <span class="ov" style="left:19.2%;width:3.8%"></span></span></div>
+  <div class="row"><span class="lb">컷3</span><span class="bar">
+    <span class="seg" style="left:38.5%;width:23%;background:#9775fa">6초</span>
+    <span class="ov" style="left:38.5%;width:3.8%"></span></span></div>
+  <div class="row"><span class="lb">컷4</span><span class="bar">
+    <span class="seg" style="left:57.7%;width:23%;background:#da77f2">6초</span>
+    <span class="ov" style="left:57.7%;width:3.8%"></span></span></div>
+  <div class="row"><span class="lb">컷5</span><span class="bar">
+    <span class="seg" style="left:76.9%;width:23%;background:#e8590c">6초</span>
+    <span class="ov" style="left:76.9%;width:3.8%"></span></span></div>
+  <div class="axis"><span>0초</span><span>13초</span><span>26초</span></div>
+</div>
+
+<p>컷 하나는 <b>6초</b>인데 5개면 30초여야 하죠. 그런데 실제는 <b>26초</b>입니다.
+   <b>빗금 친 부분</b>이 겹치는 구간이에요. 1초씩 4번 겹쳤으니 4초가 줄어든 겁니다.</p>
+
+<pre><code>6초 × 5컷 − 1초 × 4번 = <span class="y">26초</span></code></pre>
+
+<h2>3. 글자를 얹는다 <span class="ki">자막</span></h2>
+
+<p class="lead">
+  자막은 그림 위에 <b>글자를 그려 넣는</b> 겁니다. 나중에 얹는 게 아니라
+  <b>780장 각각에 직접 그려 넣어요.</b> 그래서 영상 파일 하나만 있으면 자막이 따라옵니다.
+</p>
+
+<div class="demo">
+  <div class="cap">👇 <b>특정 시간 구간에만</b> 글자를 그리라고 지시한 결과</div>
+  <div class="stage">
+    <div class="kb" style="animation-duration:8s"></div>
+    <div class="cc">강원도 영월. 나는 늘 이 작은 마을 너머가 궁금했다.</div>
+  </div>
+</div>
+
+<p>"<b>0.8초부터 5초까지만</b> 이 글자를 그려라" 라고 시간 조건을 줍니다.
+   컷이 섞이는 1초 동안은 일부러 글자를 숨겨요. 두 자막이 겹쳐 보이면 지저분하거든요.</p>
+
+<h2>4. 소리 크기를 시간에 따라 바꾼다 <span class="ki">페이드</span></h2>
+
+<p class="lead">음악이 갑자기 <b>빵</b> 하고 시작하면 놀라죠. 그래서 음량에도 곡선을 줍니다.</p>
+
+<table>
+  <tr><th>구간</th><th>음량</th><th>무슨 일</th></tr>
+  <tr><td>0 ~ 2초</td><td>0% → 100%</td><td>서서히 들어옴</td></tr>
+  <tr><td>2 ~ 23초</td><td>100%</td><td>그대로</td></tr>
+  <tr><td>23 ~ 26초</td><td>100% → 0%</td><td>서서히 사라짐</td></tr>
+</table>
+
+<div class="callout">
+  <p><b>음악이 영상보다 짧으면요?</b></p>
+  <p>알아서 <b>이어붙여 반복</b>합니다. 우리가 쓴 음악은 2분 23초라 26초보다 길었기 때문에
+     앞부분만 잘라 썼어요.</p>
+</div>
+
+<h2>5. 잠깐, MB 랑 GB 가 뭐예요? <span class="ki">파일 크기 읽는 법</span></h2>
+
+<p class="lead">
+  다음 이야기를 하려면 이것부터 알아야 해요. 핸드폰에서 "저장 공간 부족" 뜰 때 보이는 그 단위입니다.
+</p>
+
+<h3>① 기본 단위는 '바이트'</h3>
+
+<p>컴퓨터는 모든 걸 <b>바이트(Byte)</b> 라는 단위로 셉니다. 길이를 <b>미터</b>로,
+   무게를 <b>그램</b>으로 재는 것처럼요. <b>영어 글자 하나가 1바이트</b> 입니다.</p>
+
+<pre><code>A  →  1바이트
+HELLO  →  5바이트
+<span class="c">// 한글은 한 글자에 3바이트예요. '안녕' = 6바이트</span></code></pre>
+
+<h3>② K · M · G 는 무슨 뜻? — 사실 이미 알고 있어요</h3>
+
+<p>바이트는 너무 작아서 큰 파일을 세기 불편합니다. 그래서 앞에 글자를 붙여 <b>몇 배인지</b> 표시해요.
+   그런데 이 글자들, <b>킬로미터의 '킬로'와 똑같은 것</b>입니다!</p>
+
+<table>
+  <tr><th>붙이는 말</th><th>읽는 법</th><th>몇 배?</th><th>이미 아는 예</th></tr>
+  <tr><td><b>K</b></td><td>킬로</td><td>1,000배 (천)</td><td>1<b>km</b> = 1,000m</td></tr>
+  <tr><td><b>M</b></td><td>메가</td><td>1,000,000배 (백만)</td><td>메가폰, 메가커피 🙂</td></tr>
+  <tr><td><b>G</b></td><td>기가</td><td>1,000,000,000배 (십억)</td><td>기가지니, 기가인터넷</td></tr>
+  <tr><td><b>T</b></td><td>테라</td><td>1,000,000,000,000배 (일조)</td><td>외장하드 1TB</td></tr>
+</table>
+
+<p>그러니까 <b>KB</b> 는 "킬로바이트", <b>MB</b> 는 "메가바이트", <b>GB</b> 는 "기가바이트" 라고 읽습니다.
+   <b>1km 가 1,000m</b> 이듯이 <b>1KB 는 1,000B</b> 예요. 완전히 같은 규칙입니다.</p>
+
+<h3>③ 그래서 얼마나 큰 건데?</h3>
+
+<div class="ladder">
+  <div class="st">
+    <div class="u">1 B<small>바이트</small></div>
+    <div class="d"><b>글자 하나</b><small>영어 알파벳 한 글자 = A</small></div>
+  </div>
+  <div class="st">
+    <div class="u">1 KB<small>킬로바이트</small></div>
+    <div class="d"><b>공책 반 쪽</b><small>글자 1,000개쯤 · 짧은 문자 메시지 한 통</small></div>
+  </div>
+  <div class="st">
+    <div class="u">1 MB<small>메가바이트</small></div>
+    <div class="d"><b>책 한 권</b><small>글자 100만 개쯤 · 또는 사진 한 장</small></div>
+  </div>
+  <div class="st">
+    <div class="u">1 GB<small>기가바이트</small></div>
+    <div class="d"><b>책 1,000권</b><small>도서관 책장 하나 · 또는 사진 1,000장</small></div>
+  </div>
+</div>
+
+<div class="callout">
+  <p><b>한 줄 요약</b></p>
+  <p>KB → MB → GB 로 갈 때마다 <b>1,000배씩 커집니다.</b>
+     그러니까 <b>1GB 는 1MB 의 1,000배</b> 예요. 이것만 기억하면 됩니다.</p>
+</div>
+
+<h3>④ 우리 주변에서 찾아보면</h3>
+
+<table>
+  <tr><th>어디서 보나</th><th>크기</th><th>느낌</th></tr>
+  <tr><td>카톡 문자 한 줄</td><td>수십 <b>B</b></td><td>아주 작음</td></tr>
+  <tr><td>카톡 프로필 사진</td><td>몇백 <b>KB</b></td><td>작음</td></tr>
+  <tr><td>핸드폰으로 찍은 사진 한 장</td><td>3~5 <b>MB</b></td><td>보통</td></tr>
+  <tr><td><b>우리가 만든 영상</b></td><td><b>5.3 MB</b></td><td>사진 한 장 정도!</td></tr>
+  <tr><td>데이터 요금제 한 달치</td><td>5~10 <b>GB</b></td><td>큼</td></tr>
+  <tr><td>핸드폰 저장 공간</td><td>128~512 <b>GB</b></td><td>아주 큼</td></tr>
+</table>
+
+<p>26초짜리 영상이 <b>사진 한 장 정도 크기</b>라는 게 신기하죠?
+   그게 다음 이야기인 <b>압축</b> 덕분입니다.</p>
+
+<h3>⑤ 알아두면 아는 척할 수 있는 것 2개 🤓</h3>
+
+<div class="callout warm">
+  <p><b>"128GB 폰을 샀는데 왜 119GB 라고 나와요?"</b></p>
+  <p>사실 컴퓨터는 <b>1,000배가 아니라 1,024배</b>씩 셉니다.
+     컴퓨터는 2배씩 세는 걸 좋아하는데, 2를 열 번 곱하면 1,024가 되거든요.</p>
+  <p>파는 쪽은 <b>1,000배</b>로 계산해서 "128GB" 라고 적고,
+     핸드폰은 <b>1,024배</b>로 세니까 119GB 로 보이는 거예요.
+     <b>속은 게 아니라 계산 방법이 다른 것</b>입니다. 이 문서에서는 쉽게 1,000배로 설명했어요.</p>
+</div>
+
+<div class="callout warm">
+  <p><b>"100Mbps 인터넷인데 왜 다운로드는 12MB/s 밖에 안 나와요?"</b></p>
+  <p><b>b</b> 와 <b>B</b> 는 다른 겁니다. 소문자 <b>b = 비트(bit)</b>, 대문자 <b>B = 바이트(Byte)</b>.
+     그리고 <b>8비트 = 1바이트</b> 예요.</p>
+  <p>인터넷 속도는 비트로 광고하니까 <b>100 ÷ 8 = 12.5MB/s</b> 가 맞습니다.
+     이것도 속은 게 아니라 단위가 다른 거예요.</p>
+</div>
+
+<h2>6. 2GB 를 5MB 로 <span class="ki">압축</span></h2>
+
+<p class="lead">
+  이제 계산해 봅시다. 780장을 <b>그냥 다 저장하면</b> 얼마나 될까요?
+  한 장이 <b>2.6MB</b>(책 두세 권) 니까…
+</p>
+
+<pre><code>2.6MB × 780장 = <span class="y">약 2,000MB = 2GB</span>   <span class="c">// 책 2,000권!</span></code></pre>
+
+<div class="cmp">
+  <div class="r"><span class="k">그냥 저장하면</span>
+    <span class="b" style="width:100%;background:#fa5252">약 2.0 GB &nbsp;·&nbsp; 책 2,000권</span></div>
+  <div class="r"><span class="k">실제 파일</span>
+    <span class="b" style="width:2.5%;background:var(--green);min-width:150px">5.3 MB · 책 5권</span></div>
+</div>
+
+<p><b>389배</b>나 작아졌습니다. 어떻게 이게 가능할까요?</p>
+
+<div class="callout mint">
+  <p><b>비밀: 앞 장면과 달라진 부분만 저장합니다.</b></p>
+  <p>1번째 장은 통째로 저장해요. 하지만 2번째 장은 1번째와 거의 똑같잖아요?
+     그래서 <b>"1번째 장에서 이만큼만 바뀌었다"</b> 라고만 적어둡니다.
+     재생할 때는 1번째 장에 그 차이를 더해서 2번째 장을 <b>다시 만들어냅니다.</b></p>
+</div>
+
+<p>우리 영상은 카메라가 <b>천천히</b> 움직이는 데다 원래 그림도 5장뿐이라,
+   장면끼리 차이가 아주 적습니다. 그래서 압축이 특히 잘 먹었어요.
+   반대로 화면이 정신없이 바뀌는 액션 영화는 훨씬 덜 압축됩니다.</p>
+
+<h2>7. 어떻게 파일을 전체 다운 받기도 전에 재생이 가능할까? <span class="ki">스트리밍</span></h2>
+
+<p class="lead">
+  유튜브를 켜면 <b>누르자마자</b> 나오죠. 영상 파일을 통째로 다 받은 게 아닌데도요.
+  우리 영상도 똑같습니다. 비결은 <b>"다 안 받고, 필요한 만큼만 받는다"</b> 입니다.
+</p>
+
+<div class="fig">
+  <svg viewBox="0 0 700 400" role="img"
+       aria-label="브라우저가 파일 앞부분만 요청하고, 서버가 그 부분만 보내주어 재생이 시작되는 과정">
+    <defs>
+      <marker id="arO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#e8590c"/>
+      </marker>
+      <marker id="arG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2f9e44"/>
+      </marker>
+    </defs>
+
+    <!-- 브라우저 -->
+    <rect x="14" y="24" width="150" height="96" rx="13" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="2.5"/>
+    <text x="89" y="60" text-anchor="middle" font-size="27">💻</text>
+    <text x="89" y="87" text-anchor="middle" font-size="14.5" font-weight="800" fill="#1864ab">브라우저</text>
+    <text x="89" y="105" text-anchor="middle" font-size="11" fill="#5b6472">영상을 보는 쪽</text>
+
+    <!-- 서버 -->
+    <rect x="536" y="24" width="150" height="96" rx="13" fill="#f1f3f7" stroke="#1b2f57" stroke-width="2.5"/>
+    <text x="611" y="60" text-anchor="middle" font-size="27">🗄️</text>
+    <text x="611" y="87" text-anchor="middle" font-size="14.5" font-weight="800" fill="#1b2f57">서버</text>
+    <text x="611" y="105" text-anchor="middle" font-size="11" fill="#5b6472">파일을 갖고 있는 쪽</text>
+
+    <!-- 요청 -->
+    <text x="350" y="44" text-anchor="middle" font-size="13" font-weight="800" fill="#e8590c">① “앞에서 100KB만 먼저 주세요”</text>
+    <line x1="172" y1="58" x2="526" y2="58" stroke="#e8590c" stroke-width="2.5" marker-end="url(#arO)"/>
+    <text x="350" y="76" text-anchor="middle" font-size="11.5" font-family="monospace" fill="#909aad">Range: bytes=0-99999</text>
+
+    <!-- 응답 -->
+    <line x1="526" y1="98" x2="172" y2="98" stroke="#2f9e44" stroke-width="2.5" marker-end="url(#arG)"/>
+    <text x="350" y="118" text-anchor="middle" font-size="13" font-weight="800" fill="#2f9e44">② “여기 앞부분 100KB 보냅니다”</text>
+    <text x="350" y="136" text-anchor="middle" font-size="11.5" font-family="monospace" fill="#909aad">206 Partial Content</text>
+
+    <!-- 파일 막대 -->
+    <text x="14" y="192" font-size="12.5" font-weight="800" fill="#5b6472">영상 파일 전체 — 5,534,266 바이트 (5.3MB)</text>
+    <rect x="14" y="204" width="672" height="46" rx="8" fill="#eef1f6" stroke="#dde2ea"/>
+    <rect x="14" y="204" width="13" height="46" rx="8" fill="#2f9e44"/>
+    <rect x="21" y="204" width="6" height="46" fill="#2f9e44"/>
+    <text x="150" y="232" font-size="12.5" fill="#8a94a6">← 아직 안 받은 부분 (나중에 천천히 받음)</text>
+
+    <line x1="27" y1="256" x2="27" y2="278" stroke="#2f9e44" stroke-width="2"/>
+    <text x="34" y="274" font-size="12.5" font-weight="800" fill="#2f9e44">받은 건 이만큼(100KB)뿐인데 — 재생 시작! ▶</text>
+
+    <!-- 파일 속 구조 -->
+    <text x="14" y="316" font-size="12.5" font-weight="800" fill="#5b6472">파일 앞부분에 뭐가 들었길래?</text>
+    <rect x="14" y="328" width="70" height="40" rx="7" fill="#ffe8cc" stroke="#e8590c" stroke-width="2"/>
+    <text x="49" y="345" text-anchor="middle" font-size="11.5" font-weight="800" fill="#b34700">ftyp</text>
+    <text x="49" y="360" text-anchor="middle" font-size="10" fill="#b34700">파일 종류</text>
+
+    <rect x="92" y="328" width="150" height="40" rx="7" fill="#ffd8a8" stroke="#e8590c" stroke-width="2.5"/>
+    <text x="167" y="345" text-anchor="middle" font-size="11.5" font-weight="900" fill="#b34700">moov ← 목차!</text>
+    <text x="167" y="360" text-anchor="middle" font-size="10" fill="#b34700">몇 초짜리인지, 어디에 뭐가 있는지</text>
+
+    <rect x="250" y="328" width="436" height="40" rx="7" fill="#f1f3f7" stroke="#ced4da" stroke-width="2"/>
+    <text x="468" y="345" text-anchor="middle" font-size="11.5" font-weight="800" fill="#5b6472">mdat — 실제 그림 데이터 (5.2MB)</text>
+    <text x="468" y="360" text-anchor="middle" font-size="10" fill="#8a94a6">앞에서부터 조금씩 받아가며 재생</text>
+  </svg>
+  <div class="cap">브라우저는 <b>파일 앞부분만</b> 받아보고 바로 재생을 시작합니다</div>
+</div>
+
+<h3>① 목차가 파일 맨 앞에 있다</h3>
+<p>영상 파일 안에는 <b>목차</b>가 들어 있어요.
+   "이 영상은 26초짜리이고, 5초 지점 그림은 파일의 몇 번째쯤에 있다" 같은 정보입니다.
+   책 앞에 있는 목차랑 똑같아요.</p>
+<p>그런데 이 목차가 파일 <b>맨 뒤</b>에 있으면 어떻게 될까요?
+   목차를 보려고 <b>5.3MB를 전부 받아야</b> 합니다. 그래서 만들 때 <b>맨 앞으로 옮겨둡니다.</b>
+   위 그림의 주황색 <code>moov</code> 가 그거예요.</p>
+
+<div class="callout warm">
+  <p><b>책으로 비유하면</b></p>
+  <p>목차가 앞에 있으면 → 책을 펴자마자 "3장은 50쪽" 을 알 수 있어요.<br>
+     목차가 뒤에 있으면 → 3장을 찾으려고 <b>책을 끝까지 넘겨봐야</b> 합니다.</p>
+</div>
+
+<h3>② "몇 번째부터 주세요" 라고 콕 집어 요청한다</h3>
+<p>목차를 봤으니 이제 필요한 부분만 달라고 하면 됩니다.
+   진행바를 <b>중간으로 드래그</b>하면 브라우저가 이렇게 말해요.</p>
+
+<pre><code><span class="c">// 브라우저가 서버에게</span>
+Range: bytes=<span class="y">2700000</span>-        <span class="c">// "270만 번째부터 주세요"</span>
+
+<span class="c">// 서버가 대답</span>
+<span class="y">206 Partial Content</span>
+Content-Range: bytes 2700000-5534265/<span class="y">5534266</span>
+                     └ 여기부터 여기까지 ┘  └ 전체 크기 ┘</code></pre>
+
+<p><b>처음부터 다시 받지 않습니다.</b> 그래서 1시간짜리 영상도 마지막 5분을 바로 눌러 볼 수 있어요.</p>
+
+<div class="callout mint">
+  <p><b>직접 확인해 볼 수 있어요 🔍</b></p>
+  <p><b>F12</b> (또는 마우스 오른쪽 → 검사) 를 눌러 개발자 도구를 열고 <b>Network</b> 탭으로 갑니다.
+     그 상태로 영상을 재생하면 <code>dream.mp4</code> 가 <b>여러 줄</b> 나타나요.
+     한 번에 다 받는 게 아니라 <b>조각조각 나눠 받고 있다</b>는 증거입니다.
+     한 줄을 눌러 <b>Status</b> 를 보면 <code>206</code> 이라고 적혀 있을 거예요.</p>
+</div>
+
+<h2>8. 이 모든 걸 하는 도구 <span class="ki">ffmpeg</span></h2>
+
+<p class="lead">
+  지금까지 나온 일들 — 잘라내고, 섞고, 글자 얹고, 음량 줄이고 — 을 실제로 해주는 프로그램이
+  <b>ffmpeg</b>(에프에프엠펙) 입니다. 화면도 버튼도 없어요. <b>글자로 명령을 적어서</b> 시킵니다.
+</p>
+
+<p>이해하기 제일 쉬운 비유는 <b>공장 컨베이어 벨트</b> 예요.
+   한쪽 끝에 <b>재료</b>를 올리면, <b>기계들을 차례로 지나면서</b> 조금씩 바뀌고,
+   반대쪽 끝에서 <b>완성품</b>이 나옵니다.</p>
+
+<div class="fig">
+  <svg viewBox="0 0 700 268" role="img"
+       aria-label="그림과 음악이 컨베이어 벨트 위 기계들을 차례로 지나 영상 파일이 되는 과정">
+    <defs>
+      <marker id="beltArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#adb5bd"/>
+      </marker>
+    </defs>
+
+    <!-- 재료 -->
+    <text x="58" y="30" text-anchor="middle" font-size="12" font-weight="800" fill="#5b6472">재료</text>
+    <rect x="26" y="42" width="52" height="38" rx="5" fill="#a5d8ff" stroke="#4dabf7" stroke-width="2"/>
+    <rect x="32" y="50" width="52" height="38" rx="5" fill="#bcdffb" stroke="#4dabf7" stroke-width="2"/>
+    <rect x="38" y="58" width="52" height="38" rx="5" fill="#d0e9fd" stroke="#4dabf7" stroke-width="2"/>
+    <text x="64" y="82" text-anchor="middle" font-size="17">🖼</text>
+    <text x="58" y="112" text-anchor="middle" font-size="11" font-weight="700" fill="#5b6472">그림 5장</text>
+
+    <rect x="30" y="134" width="56" height="38" rx="8" fill="#ffd8a8" stroke="#e8590c" stroke-width="2"/>
+    <text x="58" y="159" text-anchor="middle" font-size="17">🎵</text>
+    <text x="58" y="186" text-anchor="middle" font-size="11" font-weight="700" fill="#5b6472">음악 1개</text>
+
+    <!-- 컨베이어 벨트 -->
+    <rect x="104" y="96" width="470" height="18" rx="9" fill="#dee2e6"/>
+    <g fill="#adb5bd">
+      <circle cx="128" cy="105" r="4"/><circle cx="188" cy="105" r="4"/><circle cx="248" cy="105" r="4"/>
+      <circle cx="308" cy="105" r="4"/><circle cx="368" cy="105" r="4"/><circle cx="428" cy="105" r="4"/>
+      <circle cx="488" cy="105" r="4"/><circle cx="548" cy="105" r="4"/>
+    </g>
+    <line x1="96" y1="105" x2="106" y2="105" stroke="#adb5bd" stroke-width="2" marker-end="url(#beltArrow)"/>
+
+    <!-- 기계 1 -->
+    <rect x="110" y="30" width="104" height="62" rx="10" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="2.5"/>
+    <text x="162" y="52" text-anchor="middle" font-size="18">🔍</text>
+    <text x="162" y="70" text-anchor="middle" font-size="11.5" font-weight="800" fill="#1864ab">카메라 무빙</text>
+    <text x="162" y="84" text-anchor="middle" font-size="9.5" font-family="monospace" fill="#748ffc">zoompan</text>
+
+    <!-- 기계 2 -->
+    <rect x="226" y="30" width="104" height="62" rx="10" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="2.5"/>
+    <text x="278" y="52" text-anchor="middle" font-size="18">🔀</text>
+    <text x="278" y="70" text-anchor="middle" font-size="11.5" font-weight="800" fill="#1864ab">겹쳐 섞기</text>
+    <text x="278" y="84" text-anchor="middle" font-size="9.5" font-family="monospace" fill="#748ffc">xfade</text>
+
+    <!-- 기계 3 -->
+    <rect x="342" y="30" width="104" height="62" rx="10" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="2.5"/>
+    <text x="394" y="52" text-anchor="middle" font-size="18">🎞</text>
+    <text x="394" y="70" text-anchor="middle" font-size="11.5" font-weight="800" fill="#1864ab">필름 질감</text>
+    <text x="394" y="84" text-anchor="middle" font-size="9.5" font-family="monospace" fill="#748ffc">noise·vignette</text>
+
+    <!-- 기계 4 -->
+    <rect x="458" y="30" width="104" height="62" rx="10" fill="#e7f5ff" stroke="#1c7ed6" stroke-width="2.5"/>
+    <text x="510" y="52" text-anchor="middle" font-size="18">💬</text>
+    <text x="510" y="70" text-anchor="middle" font-size="11.5" font-weight="800" fill="#1864ab">자막 얹기</text>
+    <text x="510" y="84" text-anchor="middle" font-size="9.5" font-family="monospace" fill="#748ffc">drawtext</text>
+
+    <!-- 음악 라인: 음악 → 음량 곡선 → 벨트에 합류 -->
+    <path d="M90 153 L226 153" fill="none" stroke="#e8590c" stroke-width="2.5" stroke-dasharray="6 4"/>
+    <rect x="230" y="130" width="140" height="46" rx="10" fill="#fff4e6" stroke="#e8590c" stroke-width="2.5"/>
+    <text x="300" y="152" text-anchor="middle" font-size="11.5" font-weight="800" fill="#b34700">🔊 음량 곡선</text>
+    <text x="300" y="167" text-anchor="middle" font-size="9.5" font-family="monospace" fill="#e8590c">afade</text>
+    <path d="M374 153 L520 153 L520 116" fill="none" stroke="#e8590c" stroke-width="2.5" stroke-dasharray="6 4"/>
+    <text x="530" y="146" font-size="10.5" font-weight="700" fill="#e8590c">소리도 합류</text>
+
+    <!-- 완성품 -->
+    <line x1="574" y1="105" x2="600" y2="105" stroke="#adb5bd" stroke-width="2" marker-end="url(#beltArrow)"/>
+    <rect x="604" y="60" width="82" height="90" rx="11" fill="#ebfbee" stroke="#2f9e44" stroke-width="2.5"/>
+    <text x="645" y="92" text-anchor="middle" font-size="24">🎬</text>
+    <text x="645" y="115" text-anchor="middle" font-size="11.5" font-weight="900" fill="#2b8a3e">dream.mp4</text>
+    <text x="645" y="132" text-anchor="middle" font-size="10" fill="#5b6472">26초 · 5.3MB</text>
+    <text x="645" y="30" text-anchor="middle" font-size="12" font-weight="800" fill="#5b6472">완성품</text>
+
+    <!-- 하단 설명 -->
+    <text x="350" y="222" text-anchor="middle" font-size="12" fill="#8a94a6">기계 하나 = 필터 하나. 순서대로 지나가며 조금씩 바뀐다</text>
+    <text x="350" y="248" text-anchor="middle" font-size="12.5" font-weight="800" fill="#5b6472">그림 5장 + 음악 1개  →  780장짜리 영상 1개</text>
+  </svg>
+  <div class="cap">기계 하나하나를 <b>필터(filter)</b> 라고 부릅니다</div>
+</div>
+
+<p>우리가 쓴 필터는 <b>이 다섯 개가 전부</b> 예요. 이름이 어려워 보여도 하는 일은 단순합니다.</p>
+
+<table>
+  <tr><th>필터 이름</th><th>하는 일</th></tr>
+  <tr><td><code>zoompan</code></td><td>조금씩 다른 부분을 잘라내 카메라를 움직임</td></tr>
+  <tr><td><code>xfade</code></td><td>두 컷을 1초 동안 겹쳐 섞음</td></tr>
+  <tr><td><code>noise</code> · <code>vignette</code></td><td>필름 알갱이 + 가장자리 어둡게 — 5장을 한 질감으로 묶음</td></tr>
+  <tr><td><code>drawtext</code></td><td>정해진 시간에만 자막을 그림</td></tr>
+  <tr><td><code>afade</code></td><td>음량을 서서히 키우고 줄임</td></tr>
+</table>
+
+<div class="callout">
+  <p><b>ffmpeg 는 어디서 왔을까? 🌍</b></p>
+  <p>2000년부터 전 세계 개발자들이 <b>무료로 함께 만들어 온</b> 프로그램이에요.
+     유튜브·넷플릭스처럼 영상을 다루는 서비스들도 뒤에서 이걸 씁니다.
+     여러분이 지금 본 영상도 <b>같은 도구</b>로 만들어졌어요.</p>
+  <p>🔗 공식 사이트 — <a href="https://ffmpeg.org/" target="_blank" rel="noopener">ffmpeg.org</a>
+     &nbsp;·&nbsp; 쓸 수 있는 필터 전체 목록 —
+     <a href="https://ffmpeg.org/ffmpeg-filters.html" target="_blank" rel="noopener">필터 문서</a>
+     <br><small>영어로 되어 있고 양이 어마어마합니다. 우리가 쓴 건 그중 5개뿐이에요.</small></p>
+</div>
+
+<div class="callout warm">
+  <p><b>왜 AI 영상 생성을 안 썼을까?</b></p>
+  <p>Kling·Veo 같은 AI 영상 도구는 <b>1초에 500원쯤</b> 합니다. 26초면 만 원이 넘고,
+     마음에 안 들어 다시 만들 때마다 또 듭니다.</p>
+  <p>ffmpeg 는 <b>공짜</b>이고 내 컴퓨터에서 돌아가요. 게다가 <b>몇 번을 돌려도 똑같은 결과</b>가 나옵니다.
+     자막 한 글자만 고쳐서 다시 만들어도 나머지는 그대로예요. AI 생성은 돌릴 때마다 결과가 달라집니다.</p>
+</div>
+
+<h2>정리 — 5장이 780장이 되기까지</h2>
+
+<table>
+  <tr><th>단계</th><th>그림 수</th></tr>
+  <tr><td>내가 AI로 그린 그림</td><td><b>5장</b></td></tr>
+  <tr><td>+ 카메라를 움직여 만들어낸 그림</td><td>+ 655장</td></tr>
+  <tr><td>+ 두 컷을 섞어 만들어낸 그림</td><td>+ 120장</td></tr>
+  <tr><td><b>영상 안에 들어 있는 그림</b></td><td><b>780장</b></td></tr>
+</table>
+
+<div class="callout mint">
+  <p><b>영상 편집이란 결국 이런 일이에요.</b></p>
+  <p>없는 그림을 <b>계산해서 만들어내고</b>, 사람 눈이 자연스럽게 느끼도록 순서와 속도를 정하는 것.
+     프로가 쓰는 편집 프로그램도 안에서는 똑같은 일을 합니다. 버튼이 예쁠 뿐이에요.</p>
+</div>
+
+<div class="foot">
+  숫자는 전부 <b>soobing 선생님의 「나의 꿈은」</b> 에서 실제로 뽑은 값입니다 ·
+  26초 · 1280×720 · 780프레임 · 5.3MB
+</div>
+
+</div>
+</body>
+</html>
